@@ -43,6 +43,11 @@ public:
     virtual MenuId get_id() const {
         return 0;
     }
+
+    virtual char const* process_keypress(KeyState const &keys, bool *processed) const {
+        *processed = false;
+        return NULL;
+    }
 };
 
 class ArrayMenuItem : public MenuItem {

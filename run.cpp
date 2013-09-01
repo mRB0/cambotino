@@ -17,6 +17,7 @@ extern "C" {
 #include "joypad.h"
 #include "menu.h"
 #include "menu_builder.h"
+#include "relays.h"
 
 /*
  * # Port definitions
@@ -48,24 +49,10 @@ extern "C" {
  * PK0, A9 = PK1, etc.
  */
 
-// Set up relay board
-void setup_relay() {
-    DDRK = 0xff;
-    PORTK = 0xff;
-}
-
 // Set up Arduino onboard LED at PORTB7
 void setup_led() {
     DDRB |= _BV(DDB7);
     PORTB &= ~_BV(PB7);
-}
-
-void activate_relay(uint8_t idx, bool state) {
-    if (state) {
-        PORTK &= ~_BV(idx);
-    } else {
-        PORTK |= _BV(idx);
-    }
 }
 
 void set_led(bool on) {
@@ -75,19 +62,6 @@ void set_led(bool on) {
         PORTB &= ~_BV(PB7);
     }
 }
-
-//
-// LCD menu
-//
-
-// inline void menu_process() {
-//     if (input_ready) {
-//         uint8_t keys = jp_presses();
-//         input_ready = false;
-
-        
-//     }
-// }
 
 //
 // Main
@@ -101,7 +75,8 @@ extern "C" {
 }
 
 void run(void) {
-    setup_relay();
+    relays_init();
+    
     setup_led();
     Serial.begin(9600);
     init_printf(NULL, serial_putc);
@@ -135,10 +110,29 @@ void run(void) {
      * I'll do that eventually, but for now the code is changing so
      * much that it's not really worthwhile.
      */    
+
+    uint8_t camera_state = 0;
     
     for(;;) {
         KeyState pressed = menu.process_keys(jp);
-        
+
+        // Manual camera operation
+        if (pressed.key_start()) {
+            if (camera_state == 0) {
+                relay(0).close();
+                camera_state++;
+            } else if (camera_state == 1) {
+                relay(1).close();
+                delay(50);
+                relay(1).open();
+                relay(0).open();
+                camera_state = 0;
+            }
+        } else if (pressed.key_select()) {
+            relay(1).open();
+            relay(0).open();
+            camera_state = 0;
+        }
     }
 }
 
