@@ -10,9 +10,7 @@
 
 #include "LiquidCrystal_I2C.h"
 
-extern "C" {
 #include "printf.h"
-}
 
 #include "joypad.h"
 #include "menu.h"
@@ -111,28 +109,8 @@ void run(void) {
      * much that it's not really worthwhile.
      */    
 
-    uint8_t camera_state = 0;
-    
     for(;;) {
         KeyState pressed = menu.process_keys(jp);
-
-        // Manual camera operation
-        if (pressed.key_start()) {
-            if (camera_state == 0) {
-                relay(0).close();
-                camera_state++;
-            } else if (camera_state == 1) {
-                relay(1).close();
-                delay(50);
-                relay(1).open();
-                relay(0).open();
-                camera_state = 0;
-            }
-        } else if (pressed.key_select()) {
-            relay(1).open();
-            relay(0).open();
-            camera_state = 0;
-        }
     }
 }
 

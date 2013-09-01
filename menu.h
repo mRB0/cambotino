@@ -6,9 +6,7 @@
 #include "LiquidCrystal_I2C.h"
 
 #include "joypad.h"
-extern "C" {
 #include "printf.h"
-}
 
 typedef uint16_t MenuId;
 
@@ -49,7 +47,7 @@ public:
         return 0;
     }
     
-    virtual bool process_keypress(KeyState const &keys, bool *redraw) const {
+    virtual bool process_keypress(KeyState const &keys, bool *redraw) {
         *redraw = false;
         return false;
     }
@@ -171,27 +169,7 @@ public:
     KeyState process_keys(Joypad &jp) {
         KeyState ks = jp.get_pressed();
 
-        if (ks.key_right()) {
-            MenuItem &item = get_current_item();
-            
-            size_t index = _selections[_current_item_idx];
-            index = (index + 1) % item.get_num_choices();
-            _selections[_current_item_idx] = index;
-
-            _needs_redraw = true;
-        } else if (ks.key_left()) {
-            MenuItem &item = get_current_item();
-            
-            size_t index = _selections[_current_item_idx];
-            if (index == 0) {
-                index = item.get_num_choices() - 1;
-            } else {
-                index--;
-            }
-            _selections[_current_item_idx] = index;
-
-            _needs_redraw = true;
-        } else if (ks.key_up()) {
+        if (ks.key_up()) {
             if (_current_item_idx == 0) {
                 _current_item_idx = _num_items - 1;
             } else {
@@ -201,6 +179,32 @@ public:
         } else if (ks.key_down()) {
             _current_item_idx = (_current_item_idx + 1) % _num_items;
             _needs_redraw = true;
+        } else {
+            bool redraw = false;
+            if (!get_current_item().process_keypress(ks, &redraw)) {
+                if (ks.key_right()) {
+                    MenuItem &item = get_current_item();
+            
+                    size_t index = _selections[_current_item_idx];
+                    index = (index + 1) % item.get_num_choices();
+                    _selections[_current_item_idx] = index;
+
+                    _needs_redraw = true;
+                } else if (ks.key_left()) {
+                    MenuItem &item = get_current_item();
+            
+                    size_t index = _selections[_current_item_idx];
+                    if (index == 0) {
+                        index = item.get_num_choices() - 1;
+                    } else {
+                        index--;
+                    }
+                    _selections[_current_item_idx] = index;
+
+                    _needs_redraw = true;
+                }
+            }
+            _needs_redraw |= redraw;
         }
 
         redraw();

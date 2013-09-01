@@ -106,6 +106,10 @@ regs Kusti, 23.10.2004
 #ifndef __TFP_PRINTF__
 #define __TFP_PRINTF__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdarg.h>
 
 void init_printf(void* putp,void (*putf) (void*,char));
@@ -115,8 +119,12 @@ void tfp_sprintf(char * s, char const *cfmt, ...);
 
 void tfp_format(void* putp,void (*putf) (void*,char),char const *fmt, va_list va);
 
-#define printf tfp_printf 
-#define sprintf tfp_sprintf 
+#define dprintf tfp_printf 
+#define dsprintf tfp_sprintf 
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 
