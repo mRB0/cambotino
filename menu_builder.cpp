@@ -101,6 +101,28 @@ static char valve_shutter_time_choicelabels_buf[sizeof(char) * label_len * valve
 // Gosh, some macros would really help here huh?
 
 //
+// Menu item: Valve to shutter release time reference
+// (ie. release 30 ms after valve open or valve close?)
+//
+
+static char const *const valve_shutter_reference_label = "Shutter time ref";
+
+// Number of choices
+static int const valve_shutter_reference_num_choices = 2;
+
+// Buffer for the choice objects
+static uint8_t valve_shutter_reference_choices_buf[sizeof(MenuItemChoice) * valve_shutter_reference_num_choices];
+
+// Buffer for pointers to the choice objects in valve_shutter_reference_choices_buf
+static MenuItemChoice const *valve_shutter_reference_choices_ptrs[valve_shutter_reference_num_choices];
+
+static char const *const valve_shutter_reference_choice_labels[] = {
+    "From valve open",
+    "From valve close"
+};
+
+
+//
 // Private helpers
 //
 
@@ -153,10 +175,24 @@ static void add_valve_shutter_time_menu() {
         choicelabels_buf_next += label_len;
     }
 
-    add_array_menu_item(MenuItemIdValveOpenTime,
+    add_array_menu_item(MenuItemIdValveToShutterReleaseTime,
                         valve_shutter_time_label,
                         valve_shutter_time_choices_ptrs,
                         valve_shutter_time_num_choices);
+}
+
+static void add_valve_shutter_reference_menu() {
+    
+    MenuItemChoice *choices_ptr = static_cast<MenuItemChoice *>((void *)&valve_shutter_reference_choices_buf);
+    
+    valve_shutter_reference_choices_ptrs[0] = new (&choices_ptr[0]) MenuItemChoice(MenuItemChoiceIdShutterReleasesAfterValveOpen, valve_shutter_reference_choice_labels[0]);
+
+    valve_shutter_reference_choices_ptrs[1] = new (&choices_ptr[1]) MenuItemChoice(MenuItemChoiceIdShutterReleasesAfterValveClose, valve_shutter_reference_choice_labels[1]);
+
+    add_array_menu_item(MenuItemIdShutterReleaseTimeReference,
+                        valve_shutter_reference_label,
+                        valve_shutter_reference_choices_ptrs,
+                        valve_shutter_reference_num_choices);
 }
 
 static void add_manual_control_menu() {
@@ -175,6 +211,7 @@ Menu &build_menu(LiquidCrystal_I2C &lcd) {
     add_manual_control_menu();
     add_valve_open_time_menu();
     add_valve_shutter_time_menu();
+    add_valve_shutter_reference_menu();
     
     Menu *menu_buf_ptr = static_cast<Menu *>((void *)&menu_buf);
     menu_ptr = new (menu_buf_ptr) Menu(lcd,
