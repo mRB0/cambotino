@@ -10,7 +10,7 @@
 
 #include "LiquidCrystal_I2C.h"
 
-#import "joypad.h"
+#include "joypad.h"
 
 /*
  * # Port definitions
@@ -119,12 +119,8 @@ void run(void) {
      */
     
     for(;;) {
-        if (jp.input_ready) {
-            uint8_t keys = jp.presses();
-            jp.input_ready = false;
-
-            set_led(Joypad::key_a(keys));
-        }
+        KeyState keys = jp.get_held();
+        set_led(keys.key_a());
     }
 }
 

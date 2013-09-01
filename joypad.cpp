@@ -84,10 +84,14 @@ Joypad::~Joypad() {
     joypad_instance = NULL;
 }
 
-uint8_t Joypad::presses() {
+KeyState const Joypad::get_pressed() {
     uint8_t presses = input_presses;
     input_presses = 0;
-    return presses;
+    return KeyState(presses);
+}
+
+KeyState const Joypad::get_held() {
+    return KeyState(input_value);
 }
 
 void Joypad::start_listening() {
