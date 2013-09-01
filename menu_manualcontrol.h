@@ -25,7 +25,7 @@ public:
     
     virtual char const *get_selection_label(uint8_t selected_index) const {
         if (_camera_state == 0) {
-            return "A: Cue camera";
+            return "A: Cue shutter";
         } else if (_camera_state == 1) {
             return "A: Rel / B: Abrt";
         } else {
@@ -41,29 +41,7 @@ public:
         return _item_id;
     }
 
-    virtual bool process_keypress(KeyState const &keys, bool *redraw) {
-        if (keys.key_a()) {
-            if (_camera_state == 0) {
-                relay(0).close();
-                _camera_state++;
-            } else if (_camera_state == 1) {
-                relay(1).close();
-                delay(50);
-                relay(1).open();
-                relay(0).open();
-                _camera_state = 0;
-            }
-            *redraw = true;
-        } else if (keys.key_b()) {
-            relay(1).open();
-            relay(0).open();
-            _camera_state = 0;
-            *redraw = true;
-        } else {
-            *redraw = false;
-        }
-        return *redraw;
-    }
+    virtual bool process_keypress(KeyState const &keys, bool *redraw);
 
 private:
 

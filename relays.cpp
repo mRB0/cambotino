@@ -26,12 +26,10 @@ Relay &relay(uint8_t num) {
 //
 
 void Relay::open() {
-    dprintf("Open relay %d\n", _relay_num);
     PORTK |= _BV(_relay_num);
 }
 
 void Relay::close() {
-    dprintf("Close relay %d\n", _relay_num);
     PORTK &= ~_BV(_relay_num);
 }
 
