@@ -10,6 +10,10 @@
 
 #include "LiquidCrystal_I2C.h"
 
+extern "C" {
+#include "printf.h"
+}
+
 #include "joypad.h"
 #include "menu.h"
 #include "menu_builder.h"
@@ -89,10 +93,19 @@ void set_led(bool on) {
 // Main
 //
 
+extern "C" {
+    void serial_putc(void *p, char c) {
+        Serial.print(c);
+        Serial.flush();
+    }
+}
+
 void run(void) {
     setup_relay();
     setup_led();
-
+    Serial.begin(9600);
+    init_printf(NULL, serial_putc);
+    
     set_led(false);
 
     LiquidCrystal_I2C lcd(0x3f, 16, 2);
@@ -104,10 +117,8 @@ void run(void) {
     Joypad jp;
     jp.start_listening();
 
-
     Menu &menu = build_menu(lcd);
     menu.redraw();
-
 
     /*
      * Ideally, we would clear interrupts (or at least some

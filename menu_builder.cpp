@@ -102,13 +102,13 @@ static void make_valve_open_time_menu() {
 //
 
 Menu &build_menu(LiquidCrystal_I2C &lcd) {
-    Menu *menu_buf_ptr = static_cast<Menu *>((void *)&menu_buf);
-
     make_valve_open_time_menu();
     
-    menu_ptr = new (&menu_buf_ptr[menu_items_count]) Menu(lcd,
-                                                          (MenuItem const *const *)menu_items_ptrs,
-                                                          menu_items_count);
+    Menu *menu_buf_ptr = static_cast<Menu *>((void *)&menu_buf);
+    menu_ptr = new (menu_buf_ptr) Menu(lcd,
+                                       (MenuItem const *const *)menu_items_ptrs,
+                                       menu_items_count);
 
+    
     return *menu_ptr;
 }
