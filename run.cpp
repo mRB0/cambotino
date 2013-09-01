@@ -10,8 +10,7 @@
 
 #include "LiquidCrystal_I2C.h"
 
-static uint16_t const Joypad_clk_len = 0x20;
-static uint16_t const Joypad_read_delay = 0x80;
+#import "joypad.h"
 
 /*
  * # Port definitions
@@ -43,32 +42,6 @@ static uint16_t const Joypad_read_delay = 0x80;
  * PK0, A9 = PK1, etc.
  */
 
-inline void enable_timer3_interrupt() {
-    TIMSK3 |= _BV(OCIE3A);
-}
-
-inline void disable_timer3_interrupt() {
-    TIMSK3 &= ~_BV(OCIE3A);
-}
-
-// Set up timer3 for joypad interfacing
-void setup_timer3() {
-    disable_timer3_interrupt();
-    TCCR3A = 0x00;
-    // WGM3 = 0100 (clear timer on compare match)
-    TCCR3A &= ~_BV(WGM30);
-    TCCR3A &= ~_BV(WGM31);
-    TCCR3B |= _BV(WGM32);
-    TCCR3B &= ~_BV(WGM33);
-
-    // CS3 = 101 = clkIO/1024 (highest prescale)
-    TCCR3B |= _BV(CS32);
-    TCCR3B &= ~_BV(CS31);
-    TCCR3B |= _BV(CS30);
-    
-    OCR3A = 0xffff;
-}
-
 // Set up relay board
 void setup_relay() {
     DDRK = 0xff;
@@ -97,78 +70,18 @@ void set_led(bool on) {
     }
 }
 
-// Reset timer3 with a new compare interrupt value
-void reset_timer3(uint16_t compare) {
-    disable_timer3_interrupt();
-    OCR3A = compare;
-    
-    // Reset the counter
-    TCNT3 = 0;
-
-    // Clear the interrupt in case it became set while disabled
-    TIFR3 |= _BV(OCF3A);
-
-    enable_timer3_interrupt();
-}
-
 //
-// Joypad
+// LCD menu
 //
 
-// Set joypad latch value.
-inline void jp_lat(boolean activate) {
-    if (activate) {
-        PORTF |= _BV(PF6);
-    } else {
-        PORTF &= ~_BV(PF6);
-    }
-}
+// inline void menu_process() {
+//     if (input_ready) {
+//         uint8_t keys = jp_presses();
+//         input_ready = false;
 
-// Set joypad clock value.
-inline void jp_clk(boolean activate) {
-    if (activate) {
-        PORTF &= ~_BV(PF5);
-    } else {
-        PORTF |= _BV(PF5);
-    }
-}
-
-// Read data bit from joypad.
-inline uint8_t jp_read() {
-    return !(PINF & _BV(PINF7));
-}
-
-void setup_joypad() {
-    DDRF |= _BV(DDF5) | _BV(DDF6);
-    DDRF &= ~_BV(DDF7);
-
-    // PORTF5 = CLK out (normal high, strobe low)
-    // PORTF6 = LAT out (normal low, strobe high)
-    // PORTF7 = D0 in (actuated button = low)
-
-    PORTF |= _BV(PF5);
-    PORTF |= _BV(PF7); // activate pull-up (maybe not required)
-    PORTF &= ~_BV(PF6);
-}
-
-static volatile boolean input_set = false;
-static volatile uint8_t input_value = 0;
-static volatile uint8_t input_presses = 0;
-
-uint8_t jp_presses() {
-    uint8_t presses = input_presses;
-    input_presses = 0;
-    return presses;
-}
-
-inline bool jp_key_a(uint8_t instate) { return instate & (1 << 0); }
-inline bool jp_key_b(uint8_t instate) { return instate & (1 << 1); }
-inline bool jp_key_select(uint8_t instate) { return instate & (1 << 2); }
-inline bool jp_key_start(uint8_t instate) { return instate & (1 << 3); }
-inline bool jp_key_up(uint8_t instate) { return instate & (1 << 4); }
-inline bool jp_key_down(uint8_t instate) { return instate & (1 << 5); }
-inline bool jp_key_left(uint8_t instate) { return instate & (1 << 6); }
-inline bool jp_key_right(uint8_t instate) { return instate & (1 << 7); }
+        
+//     }
+// }
 
 //
 // Main
@@ -177,19 +90,17 @@ inline bool jp_key_right(uint8_t instate) { return instate & (1 << 7); }
 void run(void) {
     setup_relay();
     setup_led();
-    setup_joypad();
-    setup_timer3();
+
+    set_led(false);
 
     LiquidCrystal_I2C lcd(0x3f, 16, 2);
-
     lcd.init();
  
     lcd.backlight();
     lcd.clear();
-
-    set_led(false);
     
-    reset_timer3(Joypad_read_delay);
+    Joypad jp;
+    jp.start_listening();
 
     /*
      * Ideally, we would clear interrupts (or at least some
@@ -206,79 +117,14 @@ void run(void) {
      * I'll do that eventually, but for now the code is changing so
      * much that it's not really worthwhile.
      */
-
-    uint8_t cnt = 0;
     
     for(;;) {
-        if (input_set) {
-            uint8_t keys = jp_presses();
-            input_set = false;
+        if (jp.input_ready) {
+            uint8_t keys = jp.presses();
+            jp.input_ready = false;
 
-            if (jp_key_a(keys)) {
-                cnt++;
-
-                lcd.home();
-
-                char s[8];
-                snprintf(s, 8, "%hhu", cnt);
-                
-                lcd.print(s);
-            }
-
+            set_led(Joypad::key_a(keys));
         }
     }
 }
 
-//
-// ISRs
-//
-
-ISR(TIMER3_COMPA_vect) {
-    // We track the next operation using this 'step' variable.  We
-    // need to strobe the latch line, then toggle the clock while
-    // reading data from the joypad, and then wait some time and
-    // repeat.
-    static uint8_t step = 0;
-    
-    // Stores the key state while we shift it in from the joypad.  After reading the last bit, we drop
-    static uint8_t keystate = 0;
-    static uint8_t laststate = 0;
-    
-    if (step == 0) {
-        // begin read with latch strobe
-        jp_lat(true);
-        keystate = 0;
-    } else if (step == 1) {
-        // latch unstrobe
-        jp_lat(false);
-    } else if (step >= 2 && step <= 17) {
-        // read 8 bits
-        if (step % 2 == 0) {
-            // strobe clock
-            jp_clk(true);
-        } else {
-            // unstrobe clock and read
-            keystate |= jp_read() << ((step - 3) / 2);
-            jp_clk(false);
-            
-            if (step == 17) {
-                // last bit read; update global state
-                input_value = keystate;
-                input_set = true;
-
-                uint8_t new_keypresses = keystate & ~laststate;
-                laststate = keystate;
-                input_presses |= new_keypresses;
-            }
-        }
-    }
-    
-    step = (step + 1) % 18;
-    if (step == 0) {
-        // end of read; wait some time before next read
-        reset_timer3(Joypad_read_delay);
-    } else if (step == 1) {
-        // beginning of read; increase clock until end
-        reset_timer3(Joypad_clk_len);
-    }
-};

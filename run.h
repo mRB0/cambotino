@@ -1,5 +1,5 @@
-#ifndef MAIN_H_
-#define MAIN_H_
+#ifndef RUN_H_
+#define RUN_H_
 
 void run(void);
 
