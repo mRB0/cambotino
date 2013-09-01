@@ -153,15 +153,22 @@ void setup_joypad() {
 
 static volatile boolean input_set = false;
 static volatile uint8_t input_value = 0;
+static volatile uint8_t input_presses = 0;
 
-inline bool jp_key_a() { return input_value & (1 << 0); }
-inline bool jp_key_b() { return input_value & (1 << 1); }
-inline bool jp_key_select() { return input_value & (1 << 2); }
-inline bool jp_key_start() { return input_value & (1 << 3); }
-inline bool jp_key_up() { return input_value & (1 << 4); }
-inline bool jp_key_down() { return input_value & (1 << 5); }
-inline bool jp_key_left() { return input_value & (1 << 6); }
-inline bool jp_key_right() { return input_value & (1 << 7); }
+uint8_t jp_presses() {
+    uint8_t presses = input_presses;
+    input_presses = 0;
+    return presses;
+}
+
+inline bool jp_key_a(uint8_t instate) { return instate & (1 << 0); }
+inline bool jp_key_b(uint8_t instate) { return instate & (1 << 1); }
+inline bool jp_key_select(uint8_t instate) { return instate & (1 << 2); }
+inline bool jp_key_start(uint8_t instate) { return instate & (1 << 3); }
+inline bool jp_key_up(uint8_t instate) { return instate & (1 << 4); }
+inline bool jp_key_down(uint8_t instate) { return instate & (1 << 5); }
+inline bool jp_key_left(uint8_t instate) { return instate & (1 << 6); }
+inline bool jp_key_right(uint8_t instate) { return instate & (1 << 7); }
 
 //
 // Main
@@ -173,7 +180,7 @@ void run(void) {
     setup_joypad();
     setup_timer3();
 
-    LiquidCrystal_I2C lcd(0x3f,16,2);
+    LiquidCrystal_I2C lcd(0x3f, 16, 2);
 
     lcd.init();
  
@@ -200,20 +207,24 @@ void run(void) {
      * much that it's not really worthwhile.
      */
 
+    uint8_t cnt = 0;
+    
     for(;;) {
         if (input_set) {
-            uint8_t keys = input_value;
+            uint8_t keys = jp_presses();
             input_set = false;
-            
-            lcd.home();
 
-            char states[9] = "><v^+-BA";
-            for(int i = 0; i < 8; i++) {
-                if (!(keys & (1 << i))) {
-                    states[7 - i] = ' ';
-                }
+            if (jp_key_a(keys)) {
+                cnt++;
+
+                lcd.home();
+
+                char s[8];
+                snprintf(s, 8, "%hhu", cnt);
+                
+                lcd.print(s);
             }
-            lcd.print(states);
+
         }
     }
 }
@@ -231,7 +242,8 @@ ISR(TIMER3_COMPA_vect) {
     
     // Stores the key state while we shift it in from the joypad.  After reading the last bit, we drop
     static uint8_t keystate = 0;
-
+    static uint8_t laststate = 0;
+    
     if (step == 0) {
         // begin read with latch strobe
         jp_lat(true);
@@ -253,6 +265,10 @@ ISR(TIMER3_COMPA_vect) {
                 // last bit read; update global state
                 input_value = keystate;
                 input_set = true;
+
+                uint8_t new_keypresses = keystate & ~laststate;
+                laststate = keystate;
+                input_presses |= new_keypresses;
             }
         }
     }
