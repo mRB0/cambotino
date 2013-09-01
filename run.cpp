@@ -8,30 +8,31 @@
 
 #include "Arduino.h"
 
+#include "LiquidCrystal_I2C.h"
+
+static uint16_t const Joypad_clk_len = 0x20;
+static uint16_t const Joypad_read_delay = 0x80;
+
 /*
  * # Port definitions
  *
- * ## Button
+ * ## NES joypad
  *
- * Pin 14: button yellow (input)
- * Pin 15: button red (input)
- * Pin 16: button white (output)
+ * Hooked up to PORTF[5:7], which maps to Arduino analog pins A5-A7.
+ * This sits neatly next to the relay pins on PORTK (A8-A15).
  *
- * Half-press connects yellow and white;
- * full-press connects yellow, white, and red.
+ * The NES joypad shifts 8 bits, one for each key.  Details can be
+ * found at http://www.mit.edu/~tarvizo/nes-controller.html and many
+ * other sources.
  *
- * We'll set yellow and red as inputs with internal pull-ups on.
- * White will be a low output; when we read yellow/red as low, that
- * indicates that the corresponding buttons are pressed.
- *
- * Pins 14 and 15 (PORTJ[1,0]) are pin-change interrupts 10 and 9,
- * which we can use to detect button presses.
+ * PF5 = CLK out
+ * PF6 = LAT out
+ * PINF7 = D0 in
  *
  * ## Timer3
  *
- * Timer3 is being used as a button debounce timer.  It's activated
- * when a pin change interrupt is received, and when it fires we read
- * the new button state and deactivate it.
+ * Timer3 is being used to drive the NES joypad clock and latch
+ * operation.
  *
  * ## Relays
  *
@@ -50,35 +51,7 @@ inline void disable_timer3_interrupt() {
     TIMSK3 &= ~_BV(OCIE3A);
 }
 
-inline void enable_pcint1_interrupt() {
-    PCICR |= _BV(PCIE1);
-}
-
-inline void disable_pcint1_interrupt() {
-    PCICR &= ~_BV(PCIE1);
-}
-
-// Set up button with two states (half and full press)
-void setup_button() {
-    disable_pcint1_interrupt();
-    
-    DDRH |= _BV(DDH1); // PH1 (16) out
-    PORTH &= ~_BV(PH1); // output low
-    
-    DDRJ &= ~_BV(DDJ1); // PJ1 (14) in; PCINT10
-    PORTJ |= _BV(PJ1); // enable pull-up
-    DDRJ &= ~_BV(DDJ0); // PJ0 (15) in; PCINT9
-    PORTJ |= _BV(PJ0); // enable pull-up
-
-    // enable interrupts on PJ1 (14) and PJ0 (15)
-    PCMSK1 |= _BV(PCINT9);
-    PCMSK1 |= _BV(PCINT10);
-    
-    // clear interrupt flag
-    PCIFR |= _BV(PCIF1);
-}
-
-// Set up timer3 used for button debounce
+// Set up timer3 for joypad interfacing
 void setup_timer3() {
     disable_timer3_interrupt();
     TCCR3A = 0x00;
@@ -93,8 +66,6 @@ void setup_timer3() {
     TCCR3B &= ~_BV(CS31);
     TCCR3B |= _BV(CS30);
     
-    // Preload a large value, although a new value will be set every
-    // time the compare interrupt is enabled anyway.
     OCR3A = 0xffff;
 }
 
@@ -140,65 +111,110 @@ void reset_timer3(uint16_t compare) {
     enable_timer3_interrupt();
 }
 
-inline void reset_button() {
-    disable_pcint1_interrupt();
-    PCIFR |= _BV(PCIF1);
-    enable_pcint1_interrupt();
+//
+// Joypad
+//
+
+// Set joypad latch value.
+inline void jp_lat(boolean activate) {
+    if (activate) {
+        PORTF |= _BV(PF6);
+    } else {
+        PORTF &= ~_BV(PF6);
+    }
 }
+
+// Set joypad clock value.
+inline void jp_clk(boolean activate) {
+    if (activate) {
+        PORTF &= ~_BV(PF5);
+    } else {
+        PORTF |= _BV(PF5);
+    }
+}
+
+// Read data bit from joypad.
+inline uint8_t jp_read() {
+    return !(PINF & _BV(PINF7));
+}
+
+void setup_joypad() {
+    DDRF |= _BV(DDF5) | _BV(DDF6);
+    DDRF &= ~_BV(DDF7);
+
+    // PORTF5 = CLK out (normal high, strobe low)
+    // PORTF6 = LAT out (normal low, strobe high)
+    // PORTF7 = D0 in (actuated button = low)
+
+    PORTF |= _BV(PF5);
+    PORTF |= _BV(PF7); // activate pull-up (maybe not required)
+    PORTF &= ~_BV(PF6);
+}
+
+static volatile boolean input_set = false;
+static volatile uint8_t input_value = 0;
+
+inline bool jp_key_a() { return input_value & (1 << 0); }
+inline bool jp_key_b() { return input_value & (1 << 1); }
+inline bool jp_key_select() { return input_value & (1 << 2); }
+inline bool jp_key_start() { return input_value & (1 << 3); }
+inline bool jp_key_up() { return input_value & (1 << 4); }
+inline bool jp_key_down() { return input_value & (1 << 5); }
+inline bool jp_key_left() { return input_value & (1 << 6); }
+inline bool jp_key_right() { return input_value & (1 << 7); }
 
 //
 // Main
 //
 
-volatile uint8_t button_state = 0;
-inline void read_button() {
-    button_state = PINJ & (_BV(PJ0) | _BV(PJ1));
-}
-
-inline bool btn1() {
-    return !(button_state & _BV(PJ1));
-}
-
-inline bool btn2() {
-    return !(button_state & _BV(PJ0));
-}
-
 void run(void) {
     setup_relay();
     setup_led();
-    setup_button();
+    setup_joypad();
     setup_timer3();
 
-    // Disable timer0 overflow interrupt (Arduino uses timer0 for its
-    // delay functions)
-    TIMSK0 &= ~_BV(TOIE0);
+    LiquidCrystal_I2C lcd(0x3f,16,2);
 
-    // We only want IDLE sleep mode, so that we can keep Timer3
-    // running.
-    set_sleep_mode(SLEEP_MODE_IDLE);
+    lcd.init();
+ 
+    lcd.backlight();
+    lcd.clear();
+
+    set_led(false);
     
-    // Read initial button state
-    reset_button();
-    read_button();
-    
-    cli();
+    reset_timer3(Joypad_read_delay);
+
+    /*
+     * Ideally, we would clear interrupts (or at least some
+     * interrupts) while processing parts of the interrupt results,
+     * and then put the CPU to sleep with interrupts back on.  That
+     * way we can definitively avoid potential sychronization issues,
+     * and respond to interrupts with a consistent response time
+     * (which is not necessarily important right now).
+     *
+     * We can't disable interrupts altogether, because Arduino delay()
+     * calls use a timer interrupt, and the LCD module depends on it.
+     *
+     * We should actually disable the specific interrupts selectively.
+     * I'll do that eventually, but for now the code is changing so
+     * much that it's not really worthwhile.
+     */
+
     for(;;) {
-        // Activate relays on button press:
-        // Half press = relay 1 only
-        // Full press = relay 1 & 2
-        activate_relay(0, btn1() || btn2());
-        activate_relay(1, btn1() && btn2());
+        if (input_set) {
+            uint8_t keys = input_value;
+            input_set = false;
+            
+            lcd.home();
 
-        // LED on when pressed halfway, off when pressed fully or not
-        // pressed at all
-        set_led(btn1() && !btn2());
-
-        // Sleep until next interrupt
-        sleep_enable();
-        sei();
-        sleep_cpu();
-        cli();
-        sleep_disable();
+            char states[9] = "><v^+-BA";
+            for(int i = 0; i < 8; i++) {
+                if (!(keys & (1 << i))) {
+                    states[7 - i] = ' ';
+                }
+            }
+            lcd.print(states);
+        }
     }
 }
 
@@ -207,26 +223,46 @@ void run(void) {
 //
 
 ISR(TIMER3_COMPA_vect) {
-    // Read button state
-    read_button();
+    // We track the next operation using this 'step' variable.  We
+    // need to strobe the latch line, then toggle the clock while
+    // reading data from the joypad, and then wait some time and
+    // repeat.
+    static uint8_t step = 0;
+    
+    // Stores the key state while we shift it in from the joypad.  After reading the last bit, we drop
+    static uint8_t keystate = 0;
 
-    // Cancel timer
-    disable_timer3_interrupt();
-};
-
-ISR(PCINT1_vect) {
-    // Start (or re-start) the debounce timer
-    reset_timer3(0x40);
-
-    // We could disable the pin-change interrupt here, and re-enable
-    // when the timer fires.
-    //
-    // If we did that, the timer would fire exactly 0x40 ticks after
-    // the first "bounce" and we would read the button state at that
-    // point.
-    //
-    // Because we don't, the timer will fire 0x40 ticks after the LAST
-    // bounce, and we'll read the button state then instead.
-    //
-    // Practically speaking, it's unlikely to make much difference.
+    if (step == 0) {
+        // begin read with latch strobe
+        jp_lat(true);
+        keystate = 0;
+    } else if (step == 1) {
+        // latch unstrobe
+        jp_lat(false);
+    } else if (step >= 2 && step <= 17) {
+        // read 8 bits
+        if (step % 2 == 0) {
+            // strobe clock
+            jp_clk(true);
+        } else {
+            // unstrobe clock and read
+            keystate |= jp_read() << ((step - 3) / 2);
+            jp_clk(false);
+            
+            if (step == 17) {
+                // last bit read; update global state
+                input_value = keystate;
+                input_set = true;
+            }
+        }
+    }
+    
+    step = (step + 1) % 18;
+    if (step == 0) {
+        // end of read; wait some time before next read
+        reset_timer3(Joypad_read_delay);
+    } else if (step == 1) {
+        // beginning of read; increase clock until end
+        reset_timer3(Joypad_clk_len);
+    }
 };

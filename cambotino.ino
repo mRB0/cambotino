@@ -1,3 +1,5 @@
+#include <Wire.h>
+
 #include "run.h"
 
 void setup() {
