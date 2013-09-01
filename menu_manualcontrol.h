@@ -18,7 +18,9 @@ public:
     virtual char const *get_label() const {
         return "Camera control";
     }
-    
+
+    // We supply one "null" choice because we don't actually have any
+    // choices, but Menu requires at least one.
     virtual size_t get_num_choices() const {
         return 1;
     }
