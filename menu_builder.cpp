@@ -4,6 +4,7 @@
 
 #include "new.h"
 #include "menu_manualcontrol.h"
+#include "menu_valvecontrol.h"
 
 /*
  * Set up the menu.
@@ -18,9 +19,10 @@ MenuId const MenuItemIdManualControl = 0;
 MenuId const MenuItemIdValveOpenTime = 1;
 MenuId const MenuItemIdValveToShutterReleaseTime = 2;
 MenuId const MenuItemIdShutterReleaseTimeReference = 3;
-MenuId const MenuItemCount = 4;
+MenuId const MenuItemIdValveControl = 4;
+int const MenuItemCount = 5;
 
-static int const ArrayMenuItemCount = 3;
+extern int const ArrayMenuItemCount = 3;
 
 MenuId const MenuItemChoiceIdShutterReleasesAfterValveOpen = 0;
 MenuId const MenuItemChoiceIdShutterReleasesAfterValveClose = 1;
@@ -54,6 +56,12 @@ static size_t menu_items_count = 0;
 //
 
 static uint8_t menu_item_manual_control_buf[sizeof(ManualControlMenuItem)];
+
+//
+// Menu item: Valve control
+//
+
+static uint8_t menu_item_valve_control_buf[sizeof(ValveControlMenuItem)];
 
 //
 // Menu item: Valve open time
@@ -127,9 +135,9 @@ static char const *const valve_shutter_reference_choice_labels[] = {
 //
 
 static void add_array_menu_item(MenuId id,
-                          char const *label,
-                          MenuItemChoice const *const *choices,
-                          size_t num_choices) {
+                                char const *label,
+                                MenuItemChoice const *const *choices,
+                                size_t num_choices) {
 
     ArrayMenuItem *items_ptr = static_cast<ArrayMenuItem *>((void *)&menu_arrayitems_buf);
     
@@ -203,15 +211,26 @@ static void add_manual_control_menu() {
     menu_items_count++;
 }
 
+static void add_valve_control_menu() {
+
+    ValveControlMenuItem *buf_ptr = static_cast<ValveControlMenuItem *>((void *)&menu_item_valve_control_buf);
+
+    menu_items_ptrs[menu_items_count] = new (buf_ptr) ValveControlMenuItem(MenuItemIdValveControl);
+    menu_items_count++;
+}
+
 //
 // Public interface
 //
 
 Menu &build_menu(LiquidCrystal_I2C &lcd) {
     add_manual_control_menu();
+    add_valve_control_menu();
+    
     add_valve_open_time_menu();
     add_valve_shutter_time_menu();
     add_valve_shutter_reference_menu();
+    
     
     Menu *menu_buf_ptr = static_cast<Menu *>((void *)&menu_buf);
     menu_ptr = new (menu_buf_ptr) Menu(lcd,

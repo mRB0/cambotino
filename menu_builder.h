@@ -5,10 +5,12 @@
 
 #include "menu.h"
 
+extern MenuId const MenuItemIdManualControl;
 extern MenuId const MenuItemIdValveOpenTime;
 extern MenuId const MenuItemIdValveToShutterReleaseTime;
 extern MenuId const MenuItemIdShutterReleaseTimeReference;
-extern MenuId const MenuItemCount;
+extern MenuId const MenuItemIdValveControl;
+extern int const MenuItemCount;
 
 extern MenuId const MenuItemChoiceIdShutterReleasesAfterValveOpen;
 extern MenuId const MenuItemChoiceIdShutterReleasesAfterValveClose;
