@@ -137,10 +137,8 @@ void run(void) {
      */    
     
     for(;;) {
-        menu.process_keys(jp);
+        KeyState pressed = menu.process_keys(jp);
         
-        KeyState keys = jp.get_held();
-        set_led(keys.key_a());
     }
 }
 

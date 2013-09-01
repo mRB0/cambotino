@@ -6,8 +6,11 @@
 #include "LiquidCrystal_I2C.h"
 
 #include "joypad.h"
+extern "C" {
+#include "printf.h"
+}
 
-typedef uint8_t MenuId;
+typedef uint16_t MenuId;
 
 class MenuItemChoice {
 
@@ -93,18 +96,23 @@ public:
         return _items;
     }
 
-    size_t get_selection_for_item_index(size_t item_index) {
-        return _selections[item_index];
+    MenuItemChoice const &get_selection_for_item_index(size_t item_index) {
+        MenuItem const &item = *_items[item_index];
+        size_t selection = _selections[item_index];
+        return item.get_choice(selection);
     }
 
-    size_t get_selection_for_item_id(MenuId id) {
+    MenuItemChoice const &get_selection_for_item_id(MenuId id) {
         for(size_t i = 0; i < _num_items; i++) {
             MenuItem const &item = *_items[i];
             if (item.get_id() == id) {
-                return _selections[i];
+                size_t selection = _selections[i];
+                return item.get_choice(selection);
             }
         }
-        return 0;
+        tfp_printf("get_selection_for_item_id: Unable to find item ID %d; returning something insensible", id);
+        MenuItem const *item = _items[0];
+        return item->get_choice(item->get_default_choice_index());
     }
         
     void redraw(bool force=false) {
@@ -129,7 +137,7 @@ public:
                  fmt_lcdline,
                  label);
 
-        char const *const choice_text = item.get_choice(get_selection_for_current_item()).get_label();
+        char const *const choice_text = get_selection_for_current_item().get_label();
         snprintf(line2_text,
                  sizeof(line2_text) / sizeof(*line2_text),
                  fmt_lcdline,
@@ -186,7 +194,7 @@ public:
         return *_items[_current_item_idx];
     }
 
-    size_t get_selection_for_current_item() {
+    MenuItemChoice const &get_selection_for_current_item() {
         return get_selection_for_item_index(_current_item_idx);
     }
         

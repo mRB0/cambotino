@@ -60,6 +60,8 @@ static MenuItemChoice const *valve_open_time_choices_ptrs[valve_open_time_num_ch
 // Buffer for the choice labels
 static char valve_open_time_choicelabels_buf[sizeof(char) * label_len * valve_open_time_num_choices];
 
+// Gosh, some macros would really help here huh?
+
 //
 // Private helpers
 //
@@ -111,4 +113,11 @@ Menu &build_menu(LiquidCrystal_I2C &lcd) {
 
     
     return *menu_ptr;
+}
+
+uint8_t get_valve_open_time_ms() {
+    Menu &menu = *menu_ptr;
+    MenuItemChoice const &choice = menu.get_selection_for_item_id(MenuItemIdValveOpenTime);
+
+    return (uint8_t)choice.get_id();
 }
