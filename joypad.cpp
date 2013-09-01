@@ -8,7 +8,7 @@
 
 #include "Arduino.h"
 
-static Joypad *joypad_instance = NULL;
+static Joypad *volatile joypad_instance = NULL;
 
 static uint16_t const Joypad_clk_len = 0x2;
 static uint16_t const Joypad_read_delay = 0x8;
@@ -87,6 +87,7 @@ Joypad::~Joypad() {
 KeyState const Joypad::get_pressed() {
     uint8_t presses = input_presses;
     input_presses = 0;
+    
     return KeyState(presses);
 }
 

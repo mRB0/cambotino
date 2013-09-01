@@ -11,6 +11,8 @@
 #include "LiquidCrystal_I2C.h"
 
 #include "joypad.h"
+#include "menu.h"
+#include "menu_builder.h"
 
 /*
  * # Port definitions
@@ -102,6 +104,11 @@ void run(void) {
     Joypad jp;
     jp.start_listening();
 
+
+    Menu &menu = build_menu(lcd);
+    menu.redraw();
+
+
     /*
      * Ideally, we would clear interrupts (or at least some
      * interrupts) while processing parts of the interrupt results,
@@ -116,9 +123,11 @@ void run(void) {
      * We should actually disable the specific interrupts selectively.
      * I'll do that eventually, but for now the code is changing so
      * much that it's not really worthwhile.
-     */
+     */    
     
     for(;;) {
+        menu.process_keys(jp);
+        
         KeyState keys = jp.get_held();
         set_led(keys.key_a());
     }
