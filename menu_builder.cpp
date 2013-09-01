@@ -39,7 +39,7 @@ static Menu *menu_ptr;
 //
 
 static uint8_t menu_items_buf[sizeof(ArrayMenuItem) * MenuItemCount];
-static ArrayMenuItem const *menu_items_ptrs[MenuItemCount];
+static ArrayMenuItem *menu_items_ptrs[MenuItemCount];
 static size_t menu_items_count = 0;
 
 //
@@ -108,7 +108,7 @@ Menu &build_menu(LiquidCrystal_I2C &lcd) {
     
     Menu *menu_buf_ptr = static_cast<Menu *>((void *)&menu_buf);
     menu_ptr = new (menu_buf_ptr) Menu(lcd,
-                                       (MenuItem const *const *)menu_items_ptrs,
+                                       (MenuItem *const *)menu_items_ptrs,
                                        menu_items_count);
 
     

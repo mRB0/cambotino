@@ -12,6 +12,8 @@ extern "C" {
 
 typedef uint16_t MenuId;
 
+/////////////////////////////////////////////////////////////////////////
+
 class MenuItemChoice {
 
 public:
@@ -26,6 +28,7 @@ public:
     char const *const _label;
 };
 
+/////////////////////////////////////////////////////////////////////////
 
 class MenuItem {
 
@@ -36,6 +39,8 @@ public:
     virtual size_t get_num_choices() const = 0;
     virtual MenuItemChoice const &get_choice(size_t index) const = 0;
 
+    virtual char const *get_selection_label(uint8_t selected_index) const = 0;
+    
     virtual size_t get_default_choice_index() const {
         return 0;
     }
@@ -43,12 +48,14 @@ public:
     virtual MenuId get_id() const {
         return 0;
     }
-
-    virtual char const* process_keypress(KeyState const &keys, bool *processed) const {
-        *processed = false;
-        return NULL;
+    
+    virtual bool process_keypress(KeyState const &keys, bool *redraw) const {
+        *redraw = false;
+        return false;
     }
 };
+
+/////////////////////////////////////////////////////////////////////////
 
 class ArrayMenuItem : public MenuItem {
 
@@ -66,6 +73,10 @@ public:
         return _num_choices;
     }
     
+    virtual char const *get_selection_label(uint8_t selected_index) const {
+        return get_choice(selected_index).get_label();
+    }
+
     virtual MenuItemChoice const &get_choice(size_t index) const {
         return *_choices[index];
     }
@@ -82,13 +93,14 @@ private:
     MenuId const _item_id;
 };
 
+/////////////////////////////////////////////////////////////////////////
 
 class Menu {
 
 public:
     
     Menu(LiquidCrystal_I2C &lcd,
-         MenuItem const *const *items,
+         MenuItem *const *items,
          size_t num_items)
         : _lcd(lcd), _items(items), _num_items(num_items), _current_item_idx(0), _needs_redraw(true) {
 
@@ -97,26 +109,26 @@ public:
         }
     }
     
-    const MenuItem *const *get_items() {
+    MenuItem *const *get_items() {
         return _items;
     }
 
     MenuItemChoice const &get_selection_for_item_index(size_t item_index) {
-        MenuItem const &item = *_items[item_index];
+        MenuItem &item = *_items[item_index];
         size_t selection = _selections[item_index];
         return item.get_choice(selection);
     }
 
     MenuItemChoice const &get_selection_for_item_id(MenuId id) {
         for(size_t i = 0; i < _num_items; i++) {
-            MenuItem const &item = *_items[i];
+            MenuItem &item = *_items[i];
             if (item.get_id() == id) {
                 size_t selection = _selections[i];
                 return item.get_choice(selection);
             }
         }
         tfp_printf("get_selection_for_item_id: Unable to find item ID %d; returning something insensible", id);
-        MenuItem const *item = _items[0];
+        MenuItem *item = _items[0];
         return item->get_choice(item->get_default_choice_index());
     }
         
@@ -131,7 +143,7 @@ public:
                  sizeof(fmt_lcdline) / sizeof(*fmt_lcdline),
                  "%%-%ds", Lcd_cols);
         
-        const MenuItem &item = get_current_item();
+        MenuItem &item = get_current_item();
 
         char line1_text[Lcd_cols + 1];
         char line2_text[Lcd_cols + 1];
@@ -142,7 +154,7 @@ public:
                  fmt_lcdline,
                  label);
 
-        char const *const choice_text = get_selection_for_current_item().get_label();
+        char const *const choice_text = item.get_selection_label(_selections[_current_item_idx]);
         snprintf(line2_text,
                  sizeof(line2_text) / sizeof(*line2_text),
                  fmt_lcdline,
@@ -160,7 +172,7 @@ public:
         KeyState ks = jp.get_pressed();
 
         if (ks.key_right()) {
-            MenuItem const &item = get_current_item();
+            MenuItem &item = get_current_item();
             
             size_t index = _selections[_current_item_idx];
             index = (index + 1) % item.get_num_choices();
@@ -168,7 +180,7 @@ public:
 
             _needs_redraw = true;
         } else if (ks.key_left()) {
-            MenuItem const &item = get_current_item();
+            MenuItem &item = get_current_item();
             
             size_t index = _selections[_current_item_idx];
             if (index == 0) {
@@ -195,7 +207,7 @@ public:
         return ks;
     }
 
-    const MenuItem &get_current_item() {
+    MenuItem &get_current_item() {
         return *_items[_current_item_idx];
     }
 
@@ -206,7 +218,7 @@ public:
 private:
     
     LiquidCrystal_I2C &_lcd;
-    MenuItem const *const *_items;
+    MenuItem *const *_items;
     size_t const _num_items;
 
     size_t _current_item_idx;
