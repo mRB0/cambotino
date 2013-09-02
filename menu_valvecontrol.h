@@ -25,9 +25,13 @@ public:
     
     virtual char const *get_selection_label(char *label_buf, size_t buflen) const {
         if (_valve_state == 0) {
-            return "SEL: Open";
-        } else {
+            return "SEL or B: Open";
+        } else if (_valve_state == 1) {
             return "SEL: Close";
+        } else if (_valve_state == 2) {
+            return "Release to close";
+        } else {
+            return "???";
         }
     }
 
