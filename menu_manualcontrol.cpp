@@ -9,10 +9,7 @@ bool ManualControlMenuItem::process_keys(KeyState const &keys, KeyState const &h
             _camera_state++;
         } else if (_camera_state == 1) {
             relay(RelayIndexReleaseShutter).close();
-            delay(ShutterReleaseTimeMillis);
-            relay(RelayIndexReleaseShutter).open();
-            relay(RelayIndexCueShutter).open();
-            _camera_state = 0;
+            _camera_state = 2;
         }
         return true;
     } else if (keys.key_b()) {
@@ -20,6 +17,13 @@ bool ManualControlMenuItem::process_keys(KeyState const &keys, KeyState const &h
         relay(RelayIndexCueShutter).open();
         _camera_state = 0;
         return true;
+    } else if (_camera_state == 2) {
+        if (!held_keys.key_a()) {
+            relay(RelayIndexReleaseShutter).open();
+            relay(RelayIndexCueShutter).open();
+            _camera_state = 0;
+            return true;
+        }
     }
 
     return false;

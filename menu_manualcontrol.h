@@ -29,6 +29,8 @@ public:
             return "A: Cue shutter";
         } else if (_camera_state == 1) {
             return "A: Rel / B: Abrt";
+        } else if (_camera_state == 2) {
+            return "Triggered";
         } else {
             return "??? Press B ???";
         }
