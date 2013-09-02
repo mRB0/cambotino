@@ -9,14 +9,36 @@
 #include "printf.h"
 
 typedef uint16_t MenuId;
+typedef uint32_t SelectionValue;
 
 /////////////////////////////////////////////////////////////////////////
 
-class MenuItemChoice {
+class MenuItem {
+
+public:
+
+    virtual char const *get_label() const = 0;
+    virtual char const *get_selection_label() const = 0;
+    
+    virtual MenuId get_id() const {
+        return 0;
+    }
+
+    virtual SelectionValue get_selection_value() const = 0;
+    
+    virtual bool process_keypress(KeyState const &keys, bool *redraw) {
+        *redraw = false;
+        return false;
+    }
+};
+
+/////////////////////////////////////////////////////////////////////////
+
+class ArrayMenuItemChoice {
 
 public:
     
-    MenuItemChoice(MenuId id, char const *label)
+    ArrayMenuItemChoice(MenuId id, char const *label)
         : _id(id), _label(label) {}
 
     char const *get_label() const { return _label; }
@@ -28,39 +50,12 @@ public:
 
 /////////////////////////////////////////////////////////////////////////
 
-class MenuItem {
-
-public:
-
-    virtual char const *get_label() const = 0;
-    
-    virtual size_t get_num_choices() const = 0;
-    virtual MenuItemChoice const &get_choice(size_t index) const = 0;
-
-    virtual char const *get_selection_label(uint8_t selected_index) const = 0;
-    
-    virtual size_t get_default_choice_index() const {
-        return 0;
-    }
-
-    virtual MenuId get_id() const {
-        return 0;
-    }
-    
-    virtual bool process_keypress(KeyState const &keys, bool *redraw) {
-        *redraw = false;
-        return false;
-    }
-};
-
-/////////////////////////////////////////////////////////////////////////
-
 class ArrayMenuItem : public MenuItem {
 
 public:
 
-    ArrayMenuItem(MenuId id, char const *label, MenuItemChoice const *const *choices, size_t num_choices)
-        : _label(label), _choices(choices), _num_choices(num_choices), _item_id(id) {
+ArrayMenuItem(MenuId id, char const *label, ArrayMenuItemChoice const *const *choices, size_t num_choices, size_t initial_selection)
+        : _label(label), _choices(choices), _num_choices(num_choices), _item_id(id), _selected(initial_selection) {
     }
     
     virtual char const *get_label() const {
@@ -71,24 +66,50 @@ public:
         return _num_choices;
     }
     
-    virtual char const *get_selection_label(uint8_t selected_index) const {
-        return get_choice(selected_index).get_label();
+    virtual char const *get_selection_label() const {
+        return get_choice(_selected).get_label();
     }
 
-    virtual MenuItemChoice const &get_choice(size_t index) const {
+    ArrayMenuItemChoice const &get_choice(size_t index) const {
         return *_choices[index];
+    }
+
+    ArrayMenuItemChoice const &get_selected_choice() const {
+        return get_choice(_selected);
     }
 
     virtual MenuId get_id() const {
         return _item_id;
     }
 
+    virtual SelectionValue get_selection_value() const {
+        return get_choice(_selected).get_id();
+    }
+
+    virtual bool process_keypress(KeyState const &keys, bool *redraw) {
+        if (keys.key_right()) {
+            _selected = (_selected + 1) % get_num_choices();
+
+            *redraw = true;
+        } else if (keys.key_left()) {
+            if (_selected == 0) {
+                _selected = get_num_choices() - 1;
+            } else {
+                _selected--;
+            }
+            *redraw = true;
+        }
+        return *redraw;
+    }
+
 private:
 
     char const *_label;
-    MenuItemChoice const *const *_choices;
+    ArrayMenuItemChoice const *const *_choices;
     size_t const _num_choices;
     MenuId const _item_id;
+    
+    size_t _selected;
 };
 
 /////////////////////////////////////////////////////////////////////////
@@ -101,35 +122,8 @@ public:
          MenuItem *const *items,
          size_t num_items)
         : _lcd(lcd), _items(items), _num_items(num_items), _current_item_idx(0), _needs_redraw(true) {
-
-        for(size_t i = 0; i < _num_items; i++) {
-            _selections[i] = items[i]->get_default_choice_index();
-        }
     }
     
-    MenuItem *const *get_items() {
-        return _items;
-    }
-
-    MenuItemChoice const &get_selection_for_item_index(size_t item_index) {
-        MenuItem &item = *_items[item_index];
-        size_t selection = _selections[item_index];
-        return item.get_choice(selection);
-    }
-
-    MenuItemChoice const &get_selection_for_item_id(MenuId id) {
-        for(size_t i = 0; i < _num_items; i++) {
-            MenuItem &item = *_items[i];
-            if (item.get_id() == id) {
-                size_t selection = _selections[i];
-                return item.get_choice(selection);
-            }
-        }
-        tfp_printf("get_selection_for_item_id: Unable to find item ID %d; returning something insensible", id);
-        MenuItem *item = _items[0];
-        return item->get_choice(item->get_default_choice_index());
-    }
-        
     void redraw(bool force=false) {
         if (!(_needs_redraw || force)) {
             return;
@@ -152,7 +146,7 @@ public:
                  fmt_lcdline,
                  label);
 
-        char const *const choice_text = item.get_selection_label(_selections[_current_item_idx]);
+        char const *const choice_text = item.get_selection_label();
         snprintf(line2_text,
                  sizeof(line2_text) / sizeof(*line2_text),
                  fmt_lcdline,
@@ -181,29 +175,7 @@ public:
             _needs_redraw = true;
         } else {
             bool redraw = false;
-            if (!get_current_item().process_keypress(ks, &redraw)) {
-                if (ks.key_right()) {
-                    MenuItem &item = get_current_item();
-            
-                    size_t index = _selections[_current_item_idx];
-                    index = (index + 1) % item.get_num_choices();
-                    _selections[_current_item_idx] = index;
-
-                    _needs_redraw = true;
-                } else if (ks.key_left()) {
-                    MenuItem &item = get_current_item();
-            
-                    size_t index = _selections[_current_item_idx];
-                    if (index == 0) {
-                        index = item.get_num_choices() - 1;
-                    } else {
-                        index--;
-                    }
-                    _selections[_current_item_idx] = index;
-
-                    _needs_redraw = true;
-                }
-            }
+            get_current_item().process_keypress(ks, &redraw);
             _needs_redraw |= redraw;
         }
 
@@ -215,10 +187,20 @@ public:
         return *_items[_current_item_idx];
     }
 
-    MenuItemChoice const &get_selection_for_current_item() {
-        return get_selection_for_item_index(_current_item_idx);
+    MenuItem *get_item_by_id(MenuId id) {
+        for(size_t i = 0; i < _num_items; i++) {
+            MenuItem *item = _items[i];
+            if (item->get_id() == id) {
+                return item;
+            }
+        }
+        return NULL;
     }
-        
+    
+    MenuItem *const *get_items() {
+        return _items;
+    }
+
 private:
     
     LiquidCrystal_I2C &_lcd;
@@ -226,7 +208,6 @@ private:
     size_t const _num_items;
 
     size_t _current_item_idx;
-    size_t _selections[120]; // TODO: this needs to be of length _num_items
 
     bool _needs_redraw;
     static int const Lcd_rows = 2;

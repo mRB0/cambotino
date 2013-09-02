@@ -11,8 +11,7 @@ class ManualControlMenuItem : public MenuItem {
 public:
 
     ManualControlMenuItem(MenuId id) : _camera_state(0),
-                                       _item_id(id),
-                                       _null_choice(MenuItemChoice(0, NULL)) {
+                                       _item_id(id) {
     }
     
     virtual char const *get_label() const {
@@ -25,7 +24,7 @@ public:
         return 1;
     }
     
-    virtual char const *get_selection_label(uint8_t selected_index) const {
+    virtual char const *get_selection_label() const {
         if (_camera_state == 0) {
             return "A: Cue shutter";
         } else if (_camera_state == 1) {
@@ -35,10 +34,10 @@ public:
         }
     }
 
-    virtual MenuItemChoice const &get_choice(size_t index) const {
-        return _null_choice;
+    virtual SelectionValue get_selection_value() const {
+        return 0;
     }
-
+    
     virtual MenuId get_id() const {
         return _item_id;
     }
@@ -49,8 +48,6 @@ private:
 
     uint8_t _camera_state;
     MenuId const _item_id;
-
-    MenuItemChoice const _null_choice;
 };
 
 #endif

@@ -126,7 +126,7 @@ void run(void) {
     jp.start_listening();
 
     Menu &menu = build_menu(lcd);
-    menu.redraw();
+    menu.redraw(true);
 
     /*
      * Ideally, we would clear interrupts (or at least some
@@ -148,7 +148,10 @@ void run(void) {
         KeyState pressed = menu.process_keys(jp);
 
         if (pressed.key_start()) {
+            lcd.clear();
+            lcd.print("  Capturing...  ");
             execute_synchronized_capture();
+            menu.redraw(true);
         }
     }
 }
