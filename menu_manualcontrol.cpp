@@ -2,7 +2,7 @@
 
 #include "constants.h"
 
-bool ManualControlMenuItem::process_keypress(KeyState const &keys, bool *redraw) {
+bool ManualControlMenuItem::process_keys(KeyState const &keys, KeyState const &held_keys) {
     if (keys.key_a()) {
         if (_camera_state == 0) {
             relay(RelayIndexCueShutter).close();
@@ -14,14 +14,13 @@ bool ManualControlMenuItem::process_keypress(KeyState const &keys, bool *redraw)
             relay(RelayIndexCueShutter).open();
             _camera_state = 0;
         }
-        *redraw = true;
+        return true;
     } else if (keys.key_b()) {
         relay(RelayIndexReleaseShutter).open();
         relay(RelayIndexCueShutter).open();
         _camera_state = 0;
-        *redraw = true;
-    } else {
-        *redraw = false;
+        return true;
     }
-    return *redraw;
+
+    return false;
 }

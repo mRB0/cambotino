@@ -17,8 +17,8 @@ class MenuItem {
 
 public:
 
-    virtual char const *get_label() const = 0;
-    virtual char const *get_selection_label() const = 0;
+    virtual char const *get_label(char *label_buf, size_t buflen) const = 0;
+    virtual char const *get_selection_label(char *label_buf, size_t buflen) const = 0;
     
     virtual MenuId get_id() const {
         return 0;
@@ -26,8 +26,7 @@ public:
 
     virtual SelectionValue get_selection_value() const = 0;
     
-    virtual bool process_keypress(KeyState const &keys, bool *redraw) {
-        *redraw = false;
+    virtual bool process_keys(KeyState const &pressed_keys, KeyState const &held_keys) {
         return false;
     }
 };
@@ -58,7 +57,7 @@ ArrayMenuItem(MenuId id, char const *label, ArrayMenuItemChoice const *const *ch
         : _label(label), _choices(choices), _num_choices(num_choices), _item_id(id), _selected(initial_selection) {
     }
     
-    virtual char const *get_label() const {
+    virtual char const *get_label(char *label_buf, size_t buflen) const {
         return _label;
     }
     
@@ -66,7 +65,7 @@ ArrayMenuItem(MenuId id, char const *label, ArrayMenuItemChoice const *const *ch
         return _num_choices;
     }
     
-    virtual char const *get_selection_label() const {
+    virtual char const *get_selection_label(char *label_buf, size_t buflen) const {
         return get_choice(_selected).get_label();
     }
 
@@ -86,20 +85,20 @@ ArrayMenuItem(MenuId id, char const *label, ArrayMenuItemChoice const *const *ch
         return get_choice(_selected).get_id();
     }
 
-    virtual bool process_keypress(KeyState const &keys, bool *redraw) {
-        if (keys.key_right()) {
+    virtual bool process_keys(KeyState const &pressed_keys, KeyState const &held_keys) {
+        bool processed = false;
+        if (pressed_keys.key_right()) {
             _selected = (_selected + 1) % get_num_choices();
-
-            *redraw = true;
-        } else if (keys.key_left()) {
+            processed = true;
+        } else if (pressed_keys.key_left()) {
             if (_selected == 0) {
                 _selected = get_num_choices() - 1;
             } else {
                 _selected--;
             }
-            *redraw = true;
+            processed = true;
         }
-        return *redraw;
+        return processed;
     }
 
 private:
@@ -110,6 +109,81 @@ private:
     MenuId const _item_id;
     
     size_t _selected;
+};
+
+/////////////////////////////////////////////////////////////////////////
+
+class TimeMenuItem : public MenuItem {
+
+public:
+
+    TimeMenuItem(MenuId id,
+                 char const *label,
+                 unsigned long time_step_small,
+                 unsigned long time_step,
+                 unsigned long time_step_large,
+                 unsigned long initial_time)
+        : _id(id),
+          _label(label),
+          _time_step_small(time_step_small),
+          _time_step(time_step),
+          _time_step_large(time_step_large),
+          _time(initial_time) {}
+
+    virtual char const *get_label(char *label_buf, size_t buflen) { return _label; }
+    
+    virtual char const *get_selection_label(char *label_buf, size_t buflen) const {
+        snprintf(label_buf,
+                 buflen,
+                 "%lu ms", _time);
+
+        return label_buf;
+    }
+    
+    virtual MenuId get_id() const {
+        return _id;
+    }
+
+    virtual SelectionValue get_selection_value() const {
+        return _time;
+    }
+    
+    virtual bool process_keys(KeyState const &pressed_keys, KeyState const &held_keys) {
+        unsigned long step = _time_step;
+
+        if (held_keys.key_a()) {
+            step = _time_step_large;
+        }
+
+        if (held_keys.key_b()) {
+            step = _time_step_small;
+        }
+        
+        if (pressed_keys.key_left()) {
+            if (_time > step) {
+                _time -= step;
+                return true;
+            }
+        }
+
+        if (pressed_keys.key_right()) {
+            _time += step;
+            return true;
+        }
+        
+        return false;
+    }
+    
+private:
+
+    MenuId const _id;
+    char const *_label;
+
+    unsigned long const _time_step_small;
+    unsigned long const _time_step;
+    unsigned long const _time_step_large;
+
+    unsigned long _time;
 };
 
 /////////////////////////////////////////////////////////////////////////
@@ -140,17 +214,30 @@ public:
         char line1_text[Lcd_cols + 1];
         char line2_text[Lcd_cols + 1];
 
-        char const *const label = item.get_label();
+        char label_buf[Lcd_cols + 1];
+        char const *label;
+
+        label = item.get_label((char *)&label_buf,
+                               sizeof(label_buf) / sizeof(*label_buf));
+        if (!label) {
+            label = label_buf;
+        }
         snprintf(line1_text,
                  sizeof(line1_text) / sizeof(*line1_text),
                  fmt_lcdline,
                  label);
 
-        char const *const choice_text = item.get_selection_label();
+
+        label = item.get_selection_label((char *)&label_buf,
+                               sizeof(label_buf) / sizeof(*label_buf));
+        if (!label) {
+            label = label_buf;
+        }
+
         snprintf(line2_text,
                  sizeof(line2_text) / sizeof(*line2_text),
                  fmt_lcdline,
-                 choice_text);
+                 label);
 
         _lcd.setCursor(0, 0);
         _lcd.print(line1_text);
@@ -162,7 +249,8 @@ public:
 
     KeyState process_keys(Joypad &jp) {
         KeyState ks = jp.get_pressed();
-
+        KeyState heldkeys = jp.get_held();
+        
         if (ks.key_up()) {
             if (_current_item_idx == 0) {
                 _current_item_idx = _num_items - 1;
@@ -174,9 +262,7 @@ public:
             _current_item_idx = (_current_item_idx + 1) % _num_items;
             _needs_redraw = true;
         } else {
-            bool redraw = false;
-            get_current_item().process_keypress(ks, &redraw);
-            _needs_redraw |= redraw;
+            _needs_redraw |= get_current_item().process_keys(ks, heldkeys);
         }
 
         redraw();

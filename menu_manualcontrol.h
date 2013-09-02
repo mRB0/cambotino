@@ -14,7 +14,7 @@ public:
                                        _item_id(id) {
     }
     
-    virtual char const *get_label() const {
+    virtual char const *get_label(char *label_buf, size_t buflen) const {
         return "Camera control";
     }
 
@@ -24,7 +24,7 @@ public:
         return 1;
     }
     
-    virtual char const *get_selection_label() const {
+    virtual char const *get_selection_label(char *label_buf, size_t buflen) const {
         if (_camera_state == 0) {
             return "A: Cue shutter";
         } else if (_camera_state == 1) {
@@ -42,7 +42,7 @@ public:
         return _item_id;
     }
 
-    virtual bool process_keypress(KeyState const &keys, bool *redraw);
+    virtual bool process_keys(KeyState const &pressed_keys, KeyState const &held_keys);
 
 private:
 
