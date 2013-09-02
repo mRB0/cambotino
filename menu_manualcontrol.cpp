@@ -1,9 +1,6 @@
 #include "menu_manualcontrol.h"
 
-static uint8_t const RelayIndexCueShutter = 0;
-static uint8_t const RelayIndexReleaseShutter = 1;
-
-static unsigned long const ShutterReleaseTimeMillis = 100;
+#include "constants.h"
 
 bool ManualControlMenuItem::process_keypress(KeyState const &keys, bool *redraw) {
     if (keys.key_a()) {

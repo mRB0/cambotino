@@ -18,6 +18,7 @@ extern MenuId const MenuItemChoiceIdShutterReleasesAfterValveClose;
 Menu &build_menu(LiquidCrystal_I2C &lcd);
 
 unsigned long get_valve_open_time_ms();
-unsigned long get_valve_shutter_time_ms();
+unsigned long get_valve_to_shutter_time_ms();
+MenuId get_valve_shutter_reference();
 
 #endif

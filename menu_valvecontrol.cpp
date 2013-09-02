@@ -1,6 +1,6 @@
 #include "menu_valvecontrol.h"
 
-static uint8_t const RelayIndexValve = 7;
+#include "constants.h"
 
 bool ValveControlMenuItem::process_keypress(KeyState const &keys, bool *redraw) {
     if (keys.key_a()) {

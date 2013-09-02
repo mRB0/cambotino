@@ -16,6 +16,7 @@
 #include "menu.h"
 #include "menu_builder.h"
 #include "relays.h"
+#include "constants.h"
 
 /*
  * # Port definitions
@@ -72,13 +73,47 @@ extern "C" {
     }
 }
 
-void run(void) {
-    relays_init();
+void execute_synchronized_capture() {
+    unsigned long valve_time = get_valve_open_time_ms();
+    unsigned long shutter_time = get_valve_to_shutter_time_ms();
+    bool schedule_from_valve_open = (get_valve_shutter_reference() == MenuItemChoiceIdShutterReleasesAfterValveOpen);
     
+    if (schedule_from_valve_open) {
+        if (shutter_time < valve_time) {
+            shutter_time = 0;
+        } else {
+            shutter_time -= valve_time;
+        }
+    }
+    
+    Relay &valve = relay(RelayIndexValve);
+    Relay &shutter_cue = relay(RelayIndexCueShutter);
+    Relay &shutter_release = relay(RelayIndexReleaseShutter);
+    
+    shutter_cue.close();
+
+    delay(ShutterPrepareTimeMillis);
+    
+    valve.close();
+    delay(valve_time);
+    valve.open();
+
+    delay(shutter_time);
+    shutter_release.close();
+
+    delay(ShutterReleaseTimeMillis);
+    
+    shutter_release.open();
+    shutter_cue.open();
+}
+
+void run(void) {
     setup_led();
+    
+    relays_init();
     Serial.begin(9600);
     init_printf(NULL, serial_putc);
-    
+
     set_led(false);
 
     LiquidCrystal_I2C lcd(0x3f, 16, 2);
@@ -111,6 +146,10 @@ void run(void) {
 
     for(;;) {
         KeyState pressed = menu.process_keys(jp);
+
+        if (pressed.key_start()) {
+            execute_synchronized_capture();
+        }
     }
 }
 
