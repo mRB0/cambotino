@@ -31,10 +31,6 @@ public:
         }
     }
 
-    virtual SelectionValue get_selection_value() const {
-        return 0;
-    }
-    
     virtual MenuId get_id() const {
         return _item_id;
     }

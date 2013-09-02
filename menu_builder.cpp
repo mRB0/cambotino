@@ -61,26 +61,23 @@ static uint8_t menu_item_valve_control_buf[sizeof(ValveControlMenuItem)];
 // Menu item: Valve open time
 //
 
+static uint8_t menu_item_valve_open_time_buf[sizeof(TimeMenuItem)];
+
 static char const *const valve_open_time_label = "Valve open time";
 
-// Number of choices
-static int const valve_open_time_num_choices = 50;
-
 // What options are available eg. 4 => 4ms, 8ms, 12ms, etc.
-static int const valve_open_time_step = 25;
+static unsigned long const valve_open_time_step_small = 5;
+static unsigned long const valve_open_time_step = 10;
+static unsigned long const valve_open_time_step_large = 25;
 
-// Buffer for the choice objects
-static uint8_t valve_open_time_choices_buf[sizeof(ArrayMenuItemChoice) * valve_open_time_num_choices];
+static unsigned long const valve_open_time_initial = 25;
 
-// Buffer for pointers to the choice objects in valve_open_time_choices_buf
-static ArrayMenuItemChoice const *valve_open_time_choices_ptrs[valve_open_time_num_choices];
-
-// Buffer for the choice labels
-static char valve_open_time_choicelabels_buf[sizeof(char) * label_len * valve_open_time_num_choices];
 
 //
 // Menu item: Valve to shutter release time
 //
+
+static uint8_t menu_item_valve_shutter_time_buf[sizeof(TimeMenuItem)];
 
 static char const *const valve_shutter_time_label = "Shut. rel after";
 
@@ -88,19 +85,11 @@ static char const *const valve_shutter_time_label = "Shut. rel after";
 static int const valve_shutter_time_num_choices = 50;
 
 // What options are available eg. 4 => 4ms, 8ms, 12ms, etc.
-static int const valve_shutter_time_step = 50;
+static unsigned long const valve_shutter_time_step_small = 5;
+static unsigned long const valve_shutter_time_step = 25;
+static unsigned long const valve_shutter_time_step_large = 100;
 
-// Buffer for the choice objects
-static uint8_t valve_shutter_time_choices_buf[sizeof(ArrayMenuItemChoice) * valve_shutter_time_num_choices];
-
-// Buffer for pointers to the choice objects in valve_shutter_time_choices_buf
-static ArrayMenuItemChoice const *valve_shutter_time_choices_ptrs[valve_shutter_time_num_choices];
-
-// Buffer for the choice labels
-static char valve_shutter_time_choicelabels_buf[sizeof(char) * label_len * valve_shutter_time_num_choices];
-
-
-// Gosh, some macros would really help here huh?
+static unsigned long const valve_shutter_time_initial = 750;
 
 //
 // Menu item: Valve to shutter release time reference
@@ -142,47 +131,31 @@ static void add_array_menu_item(MenuId id,
     menu_items_count++;
 }
 
-// static void add_valve_open_time_menu() {
+static void add_valve_open_time_menu() {
     
-//     ArrayMenuItemChoice *choices_ptr = static_cast<ArrayMenuItemChoice *>((void *)&valve_open_time_choices_buf);
-
-//     char *choicelabels_buf_next = valve_open_time_choicelabels_buf;
+    TimeMenuItem *buf_ptr = static_cast<TimeMenuItem *>((void *)&menu_item_valve_open_time_buf);
     
-//     for(int i = 0; i < valve_open_time_num_choices; i++) {
-//         int time_ms = valve_open_time_step * (i + 1);
-//         snprintf(choicelabels_buf_next,
-//                  label_len,
-//                  "%d ms", time_ms);
-//         valve_open_time_choices_ptrs[i] = new (&choices_ptr[i]) ArrayMenuItemChoice(i, choicelabels_buf_next);
-//         choicelabels_buf_next += label_len;
-//     }
+    menu_items_ptrs[menu_items_count] = new (buf_ptr) TimeMenuItem(MenuItemIdValveOpenTime,
+                                                                   valve_open_time_label,
+                                                                   valve_open_time_step_small,
+                                                                   valve_open_time_step,
+                                                                   valve_open_time_step_large,
+                                                                   valve_open_time_initial);
+    menu_items_count++;
+}
 
-//     add_array_menu_item(MenuItemIdValveOpenTime,
-//                         valve_open_time_label,
-//                         valve_open_time_choices_ptrs,
-//                         valve_open_time_num_choices);
-// }
+static void add_valve_shutter_time_menu() {
 
-// static void add_valve_shutter_time_menu() {
+    TimeMenuItem *buf_ptr = static_cast<TimeMenuItem *>((void *)&menu_item_valve_shutter_time_buf);
     
-//     ArrayMenuItemChoice *choices_ptr = static_cast<ArrayMenuItemChoice *>((void *)&valve_shutter_time_choices_buf);
-
-//     char *choicelabels_buf_next = valve_shutter_time_choicelabels_buf;
-    
-//     for(int i = 0; i < valve_shutter_time_num_choices; i++) {
-//         int time_ms = valve_shutter_time_step * (i + 1);
-//         snprintf(choicelabels_buf_next,
-//                  label_len,
-//                  "%d ms", time_ms);
-//         valve_shutter_time_choices_ptrs[i] = new (&choices_ptr[i]) ArrayMenuItemChoice(i, choicelabels_buf_next);
-//         choicelabels_buf_next += label_len;
-//     }
-
-//     add_array_menu_item(MenuItemIdValveToShutterReleaseTime,
-//                         valve_shutter_time_label,
-//                         valve_shutter_time_choices_ptrs,
-//                         valve_shutter_time_num_choices);
-// }
+    menu_items_ptrs[menu_items_count] = new (buf_ptr) TimeMenuItem(MenuItemIdValveToShutterReleaseTime,
+                                                                   valve_shutter_time_label,
+                                                                   valve_shutter_time_step_small,
+                                                                   valve_shutter_time_step,
+                                                                   valve_shutter_time_step_large,
+                                                                   valve_shutter_time_initial);
+    menu_items_count++;
+}
 
 static void add_valve_shutter_reference_menu() {
 
@@ -223,8 +196,8 @@ Menu &build_menu(LiquidCrystal_I2C &lcd) {
     add_manual_control_menu();
     add_valve_control_menu();
     
-    // add_valve_open_time_menu();
-    // add_valve_shutter_time_menu();
+    add_valve_open_time_menu();
+    add_valve_shutter_time_menu();
     add_valve_shutter_reference_menu();
     
     
@@ -239,18 +212,16 @@ Menu &build_menu(LiquidCrystal_I2C &lcd) {
 
 unsigned long get_valve_open_time_ms() {
     Menu &menu = *menu_ptr;
-    ArrayMenuItem &item = *((ArrayMenuItem *)menu.get_item_by_id(MenuItemIdValveOpenTime));
-    ArrayMenuItemChoice const &choice = item.get_selected_choice();
-    
-    return (1 + (unsigned long)choice.get_id()) * valve_open_time_step;
+    TimeMenuItem &item = *((TimeMenuItem *)menu.get_item_by_id(MenuItemIdValveOpenTime));
+
+    return item.get_time();
 }
 
 unsigned long get_valve_to_shutter_time_ms() {
     Menu &menu = *menu_ptr;
-    ArrayMenuItem &item = *((ArrayMenuItem *)menu.get_item_by_id(MenuItemIdValveToShutterReleaseTime));
-    ArrayMenuItemChoice const &choice = item.get_selected_choice();
-
-    return (1 + (unsigned long)choice.get_id()) * valve_shutter_time_step;
+    TimeMenuItem &item = *((TimeMenuItem *)menu.get_item_by_id(MenuItemIdValveToShutterReleaseTime));
+    
+    return item.get_time();
 }
 
 MenuId get_valve_shutter_reference() {

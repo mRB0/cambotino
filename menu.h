@@ -9,7 +9,6 @@
 #include "printf.h"
 
 typedef uint16_t MenuId;
-typedef uint32_t SelectionValue;
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -24,8 +23,6 @@ public:
         return 0;
     }
 
-    virtual SelectionValue get_selection_value() const = 0;
-    
     virtual bool process_keys(KeyState const &pressed_keys, KeyState const &held_keys) {
         return false;
     }
@@ -81,10 +78,6 @@ ArrayMenuItem(MenuId id, char const *label, ArrayMenuItemChoice const *const *ch
         return _item_id;
     }
 
-    virtual SelectionValue get_selection_value() const {
-        return get_choice(_selected).get_id();
-    }
-
     virtual bool process_keys(KeyState const &pressed_keys, KeyState const &held_keys) {
         bool processed = false;
         if (pressed_keys.key_right()) {
@@ -130,7 +123,7 @@ public:
           _time_step_large(time_step_large),
           _time(initial_time) {}
 
-    virtual char const *get_label(char *label_buf, size_t buflen) { return _label; }
+    virtual char const *get_label(char *label_buf, size_t buflen) const { return _label; }
     
     virtual char const *get_selection_label(char *label_buf, size_t buflen) const {
         snprintf(label_buf,
@@ -144,7 +137,7 @@ public:
         return _id;
     }
 
-    virtual SelectionValue get_selection_value() const {
+    virtual unsigned long get_time() const {
         return _time;
     }
     
