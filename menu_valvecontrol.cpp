@@ -13,8 +13,10 @@ bool ValveControlMenuItem::process_keys(KeyState const &keys, KeyState const &he
         }
         return true;
     } else if (held_keys.key_b()) {
-        if (_valve_state == 0) {
-            relay(RelayIndexValve).close();
+        if (_valve_state != 2) {
+            if (_valve_state == 0) {
+                relay(RelayIndexValve).close();
+            }
             _valve_state = 2;
             return true;
         }

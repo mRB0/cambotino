@@ -2,6 +2,8 @@
 
 #include <stdint.h>
 
+#include "EEPROM.h"
+
 #include "new.h"
 #include "menu_manualcontrol.h"
 #include "menu_valvecontrol.h"

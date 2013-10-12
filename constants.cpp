@@ -1,6 +1,6 @@
 #include "constants.h"
 
-uint8_t const RelayIndexValve = 7;
+uint8_t const RelayIndexValve = 2;
 
 uint8_t const RelayIndexCueShutter = 0;
 uint8_t const RelayIndexReleaseShutter = 1;

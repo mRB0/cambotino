@@ -9,7 +9,11 @@ class Relay {
     
 public:
 
-    Relay(uint8_t num) : _relay_num(num) {}
+    Relay(uint8_t volatile *port, uint8_t volatile *ddr, uint8_t pin, bool invert)
+        : _port(port), _pin(pin), _invert(invert) {
+        *ddr |= _BV(pin);
+        open();
+    }
 
     void open();
     void close();
@@ -19,10 +23,14 @@ public:
     
 private:
 
-    uint8_t const _relay_num;
+    void drop();
+    void raise();
+    
+    uint8_t volatile *const _port;
+    uint8_t const _pin;
+    bool const _invert;
 };
 
-void relays_init();
 Relay &relay(uint8_t num);
 
 

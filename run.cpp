@@ -110,7 +110,6 @@ void execute_synchronized_capture() {
 void run(void) {
     setup_led();
     
-    relays_init();
     Serial.begin(9600);
     init_printf(NULL, serial_putc);
 
@@ -125,6 +124,12 @@ void run(void) {
     Joypad jp;
     jp.start_listening();
 
+    while (!jp.input_ready);
+    if (jp.get_held().key_select()) {
+        lcd.print("EEPROM cleared");
+        while (jp.get_held().key_select());
+    }
+    
     Menu &menu = build_menu(lcd);
     menu.redraw(true);
 

@@ -1,21 +1,11 @@
 #include "relays.h"
 #include "printf.h"
 
-static Relay relays[8] = {
-    Relay(0),
-    Relay(1),
-    Relay(2),
-    Relay(3),
-    Relay(4),
-    Relay(5),
-    Relay(6),
-    Relay(7)
+static Relay relays[] = {
+    Relay(&PORTH, &DDRH, PORTH0, true),
+    Relay(&PORTD, &DDRD, PORTD3, true),
+    Relay(&PORTD, &DDRD, PORTD2, false)
 };
-
-void relays_init() {
-    DDRK = 0xff;
-    PORTK = 0xff;
-}
 
 Relay &relay(uint8_t num) {
     return relays[num];
@@ -25,19 +15,27 @@ Relay &relay(uint8_t num) {
 // Relay class implementation
 //
 
+void Relay::drop() {
+    *_port &= ~_BV(_pin);
+}
+
+void Relay::raise() {
+    *_port |= _BV(_pin);
+}
+
 void Relay::open() {
-    PORTK |= _BV(_relay_num);
+    _invert ? raise() : drop();
 }
 
 void Relay::close() {
-    PORTK &= ~_BV(_relay_num);
+    _invert ? drop() : raise();
 }
 
 bool Relay::is_open() {
-    return PORTK & _BV(_relay_num);
+    return (bool)(!!(*_port & _BV(_pin))) == _invert;
 }
 
 bool Relay::is_closed() {
-    return !(PORTK & _BV(_relay_num));
+    return (bool)(!(*_port & _BV(_pin))) == _invert;
 }
 
