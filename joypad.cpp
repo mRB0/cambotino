@@ -65,16 +65,17 @@ Joypad::Joypad() : input_ready(false), input_value(0), input_presses(0) {
     
     joypad_instance = this;
 
-    DDRF |= _BV(DDF5) | _BV(DDF6);
-    DDRF &= ~_BV(DDF7);
+    DDRJ |= _BV(DDJ0);
+    DDRJ |= _BV(DDJ1);
+    DDRH &= ~_BV(DDH1);
 
-    // PORTF5 = CLK out (normal high, strobe low)
-    // PORTF6 = LAT out (normal low, strobe high)
-    // PORTF7 = D0 in (actuated button = low)
+    // PORTJ0 = CLK out (normal high, strobe low)
+    // PORTJ1 = LAT out (normal low, strobe high)
+    // PORTH1 = D0 in (actuated button = low)
 
-    PORTF |= _BV(PF5);
-    PORTF |= _BV(PF7); // activate pull-up (maybe not required)
-    PORTF &= ~_BV(PF6);
+    PORTJ |= _BV(PJ0);
+    PORTJ &= ~_BV(PJ1);
+    PORTH |= _BV(PH1); // activate pull-up (maybe not required)
 
     setup_timer3();
 }
@@ -85,7 +86,7 @@ Joypad::~Joypad() {
 }
 
 KeyState const Joypad::get_pressed() {
-    uint8_t presses = input_presses;
+    uint16_t presses = input_presses;
     input_presses = 0;
     
     return KeyState(presses);
@@ -111,8 +112,8 @@ ISR(TIMER3_COMPA_vect) {
     static uint8_t step = 0;
     
     // Stores the key state while we shift it in from the joypad.  After reading the last bit, we drop
-    static uint8_t keystate = 0;
-    static uint8_t laststate = 0;
+    static uint16_t keystate = 0;
+    static uint16_t laststate = 0;
     
     if (step == 0) {
         // begin read with latch strobe
@@ -121,8 +122,8 @@ ISR(TIMER3_COMPA_vect) {
     } else if (step == 1) {
         // latch unstrobe
         joypad_instance->lat(false);
-    } else if (step >= 2 && step <= 17) {
-        // read 8 bits
+    } else if (step >= 2 && step <= 33) {
+        // read 16 bits
         if (step % 2 == 0) {
             // strobe clock
             joypad_instance->clk(true);
@@ -131,19 +132,19 @@ ISR(TIMER3_COMPA_vect) {
             keystate |= joypad_instance->read() << ((step - 3) / 2);
             joypad_instance->clk(false);
             
-            if (step == 17) {
+            if (step == 33) {
                 // last bit read; update global state
                 joypad_instance->input_value = keystate;
                 joypad_instance->input_ready = true;
                 
-                uint8_t new_keypresses = keystate & ~laststate;
+                uint16_t new_keypresses = keystate & ~laststate;
                 laststate = keystate;
                 joypad_instance->input_presses |= new_keypresses;
             }
         }
     }
     
-    step = (step + 1) % 18;
+    step = (step + 1) % 34;
     if (step == 0) {
         // end of read; wait some time before next read
         reset_timer3(Joypad_read_delay);

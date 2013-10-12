@@ -11,20 +11,24 @@ class KeyState {
 
 public:
 
-    KeyState(uint8_t const keyvalue) : _keyvalue(keyvalue) {}
+    KeyState(uint16_t const keyvalue) : _keyvalue(keyvalue) {}
 
-    uint8_t const _keyvalue;
+    uint16_t const _keyvalue;
 
     inline bool any() const { return _keyvalue != 0; }
     
-    inline bool key_a() const { return _keyvalue & (1 << 0); }
-    inline bool key_b() const { return _keyvalue & (1 << 1); }
+    inline bool key_b() const { return _keyvalue & (1 << 0); }
+    inline bool key_y() const { return _keyvalue & (1 << 1); }
     inline bool key_select() const { return _keyvalue & (1 << 2); }
     inline bool key_start() const { return _keyvalue & (1 << 3); }
     inline bool key_up() const { return _keyvalue & (1 << 4); }
     inline bool key_down() const { return _keyvalue & (1 << 5); }
     inline bool key_left() const { return _keyvalue & (1 << 6); }
     inline bool key_right() const { return _keyvalue & (1 << 7); }
+    inline bool key_a() const { return _keyvalue & (1 << 8); }
+    inline bool key_x() const { return _keyvalue & (1 << 9); }
+    inline bool key_l() const { return _keyvalue & (1 << 10); }
+    inline bool key_r() const { return _keyvalue & (1 << 11); }
 };
 
 
@@ -50,29 +54,29 @@ public:
     // Set joypad latch value.
     inline void lat(bool activate) {
         if (activate) {
-            PORTF |= _BV(PF6);
+            PORTJ |= _BV(PJ1);
         } else {
-            PORTF &= ~_BV(PF6);
+            PORTJ &= ~_BV(PJ1);
         }
     };
 
     // Set joypad clock value.
     inline void clk(bool activate) {
         if (activate) {
-            PORTF &= ~_BV(PF5);
+            PORTJ &= ~_BV(PJ0);
         } else {
-            PORTF |= _BV(PF5);
+            PORTJ |= _BV(PJ0);
         }
     }
 
     // Read data bit from joypad.
     inline uint8_t read() {
-        return !(PINF & _BV(PINF7));
+        return !(PINH & _BV(PINH1));
     }
 
     volatile bool input_ready;
-    volatile uint8_t input_value;
-    volatile uint8_t input_presses;
+    volatile uint16_t input_value;
+    volatile uint16_t input_presses;
 
 };
 
