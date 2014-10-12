@@ -91,7 +91,7 @@ static unsigned long const valve_shutter_time_step_small = 5;
 static unsigned long const valve_shutter_time_step = 25;
 static unsigned long const valve_shutter_time_step_large = 100;
 
-static unsigned long const valve_shutter_time_initial = 750;
+static unsigned long const valve_shutter_time_initial = 250;
 
 //
 // Menu item: Valve to shutter release time reference

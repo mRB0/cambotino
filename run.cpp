@@ -126,6 +126,7 @@ void run(void) {
 
     while (!jp.input_ready);
     if (jp.get_held().key_select()) {
+
         lcd.print("EEPROM cleared");
         while (jp.get_held().key_select());
     }
